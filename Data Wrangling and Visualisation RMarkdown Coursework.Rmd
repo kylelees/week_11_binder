@@ -1,0 +1,202 @@
+---
+title: "Data Wrangling and Visualisation RMarkdown Coursework"
+author: '9942433'
+date: "20/11/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Part one
+
+I am firstly going to import my data set titled 'Coursework_Data'. I achieve this by loading in the `readxl` package using the `library()` function, which allows the excel data file to be supported in R. I then title my data set `Coursework_Data`, followed by the function `read_excel()` with `Coursework_Data.xlsx` in parentheses to create a path from R to the excel data file itself within the environment. I finally use `View()` function to view the imported data file.
+
+```{r}
+library(readxl)
+Coursework_Data <- read_excel("Coursework_Data.xlsx")
+View(Coursework_Data)
+```
+
+I can now view `Coursework_Data` by typing the name of the dataset.
+
+```{r}
+Coursework_Data
+```
+
+The data set contains a repeated measures experiment containing 48 participants who responded to words that were either common or rare, measuring their reaction times in milliseconds. It was hypothesised that participants would respond faster to common words than to rare words.
+
+Observing the dataset, I can see the first 10 rows of the data. Notice that the data is in wide format, meaning each row is a participant. In order to shape the data into a way which is easier to visualise when comparing the two word conditions, the format of the data should be long, meaning each row is one observation.
+
+As such, I load in the `tidyverse` package. This contains `tidyr`, a useful tool for changing the format of the data from wide to long. This also contains `ggplot2`, a useful tool for visualising graphical data.
+
+```{r, message=FALSE}
+library(tidyverse)
+```
+
+I can now change the format of the data from wide to long. First, I name the dataset that is going to become long format `data_long`. Next, I use the `gather()` function which allows me to group the column variables into one group which will become 'condition' alongside the dependent variable 'rt'. Within the parentheses, I choose `Coursework_Data` followed by the independent variable name `condition` and the dependent variable `rt`. I then use the `c()` function to choose which column names I wish to form into the factoral vector. Within these parentheses, I choose `"common_word", "rare_word"`.
+
+```{r}
+data_long <- gather(Coursework_Data, "condition", "rt", c("common_word", "rare_word"))
+```
+
+I can now run the `data_long` dataset
+
+```{r}
+data_long
+```
+
+Here I can see that both 'common_word' and 'rare_word' grouped under 'condition' rather than being completely separate conditions. Each row is now a single observation rather than a participant.
+
+Now that the data is in long format, I can gather information about the structure of the data using the `str()` function for the `data_long` data frame, which compactly displays the content of the data.
+
+```{r}
+str(data_long)
+```
+
+Here I can see there are 96 observations, with three variables associated with each observation. Both `participant` and `rt` are numeric vectors, whilst `condition` is character.
+
+### Part two
+
+I can now visualise the data to see whether reaction time varies as a result of word frequency. This can be shown through the use of a violin plot, which will demonstrate the density of the distribution for both `common_word` and `rare_word`, highlighting which word condition produced consistently faster reaction times in ms.
+
+Before visualising the violin plot, I am going to change the `condition` labels of `common_word` and `rare_word` within the 'data_long' data set to `Common Word` and `Rare Word` so that they are formatted correctly within the labels of the the two violin plots. To do this, I first select `data_long` and then use the `mutate()` function with `Condition = recode` in the parentheses to preserve the data within the `Condition` variable whilst changing the labels of the levels. I have done this by adding `(condition, "common_word" = "Common Word", "rare_word" = "Rare Word"))` following on from the recode function.
+
+Now that my Condition labels are formatted appropriately, I use the pipe operator followed by the `ggplot()` function, which allows me to aesthetically create a graphic plot of the data. Within the parentheses, I use the `aes()` function which describes how variables within the dataset are visually mapped to the geoms. Within the `aes()` function parentheses, I plot the independent variable along the x axis using `x = Condition` and the dependent variable along the y axis using `y = rt`. Following from this, I use `fill = Condition` to give distinguishable colours to the two levels within Condition.
+
+I then add a `geom_violin()` layer to display the distribution of the reaction times of the two word conditions within the `ggplot()`. As reaction time is a continuous variable, it is possible that some participants may have similar reaction times that overlap within the data, so the use of the `geom_jitter()` function will add a small amount of variation to the raw datapoints, meaning they are easier to identify. Within the parentheses, `alpha = .3` will slightly shade points that overlap so they are distinguishable within the violin plot, whilst `width = .1` will ensure the variation of the raw data is limited, which can allow for the data to be easier to read. This is particularly useful for the small data set of only 48 participants as the variation of the data points along the x axis will be easier to interpret if there is less space between them.
+
+Now that the word conditions of the violin plot are visually complete, I can also visualise the mean reaction times and then assign confidence intervals. Using the `stat_summary()` function, which has the ability to compute the aggrigate of data, I can transform the groups of observations into summary statistics based on the data observations. Within the `stat_summary()` parentheses,  `fun.data = "mean_cl_boot"` means that the numeric vector of Reaction Time will be input, and then output as a data frame using `fun.data`, in this case as a mean with bootstrapped confidence intervals through `mean_c1_boot`. Next, the parameter of `colour = black` will display the mean and confidence intervals in the colour black so they are distinguishable against the red and blue violin plots. The following parameter of `size = 1` will make the mean and bootstrapped confidence intervals thicker than the raw data points within the violin plot so they are easier to distinguish.
+
+I can now tidy the violin plot using the `guides()` function with `fill = FALSE` in parentheses to remove the colour legend.
+
+I then use the "labs()" function which allows me to create a title for my violin plot, which I have created in parentheses of `(title = Plot of Reaction Time (ms.) by Condition)`. I can also add in the labels for my x and y axis, which are `Condition` and `Reaction Time (ms.)` respectively. The use of the `theme()` function with `text = element text(size = 15)` in parentheses will make the title and labels a larger size and therefore easier to read.
+
+```{r}
+data_long %>%
+  mutate(Condition = recode(condition,
+                            "common_word" = "Common Word",
+                            "rare_word" = "Rare Word")) %>%
+  ggplot(aes(x = Condition, y = rt, group = Condition, fill = Condition)) +
+  geom_violin() +
+  geom_jitter(alpha = .3, width = .1) +
+  stat_summary(fun.data = "mean_cl_boot", colour = "black", size = 1) +
+  guides(fill = FALSE) +
+  labs(title = "Plot of Reaction Time (ms.) by Condition",
+       x = "Condition",
+       y = "Reaction Time (ms.)") +
+  theme(text = element_text(size = 15))
+```
+
+Here I can see that based on the width of the two distributions within the violin plot that participants had a higher probability of producing a lower reaction time for responding to common words compared to rare words. There was also a wider range of distribution for rare words, suggesting that participants' reaction times were not overall consistent. The mean reaction time for Common Word was around 760 ms compared to around 860 ms for Rare Word. This suggests that participants did respond to common words faster than rare words, which was consistent with the hypothesis.
+
+### Part three
+
+An additional data set titled `literature_data` contains data regarding a measure of the participant's engagement with literature. It is suggested that a participant's engagement with literature may be related to their reaction time in ms for Common Word and Rare Word. 
+
+In order to begin testing this suggestion, I am going to import the data set 'literature_data'. Again, loading in the `readxl` package using the `library()` function allows the excel data file to be supported in R. I then title my data set `literature_data`, followed by the function `read_excel()` with `"literature_data.xlsx"` in parentheses to create a path from R to the excel data file itself within the environment. I finally use `View()` function to view the imported data file.
+
+```{r}
+library(readxl)
+literature_data <- read_excel("literature_data.xlsx")
+View(literature_data)
+```
+
+I can now load in the data by typing `literature_data`
+
+```{r}
+literature_data
+```
+
+Here I can see that the data set contains 200 participants and is not in ascending order based on these participants. I only need the first 48 participants from this data set to compare their engagement with literature to their reaction times. In order to do this, I am first going to wrangle the raw data so that it is tidy and the participants are in order from 1-200. I will do this by firstly creating a new ordered data set titled `ordered_literture_data`. This is followed by stating the data set I wish to change using `<-`, titled `literature_data`. This is followed by using the `order()` function to state that I wish to change the order of a variable within the data set. I then use the `+` character to state that I wish the order of the dataset to ascend, followed by `literature_data$participant` to state the dataset I wish to use and the variable within the data that I wish to format in ascending order from 1-200.
+
+```{r}
+ordered_literature_data <- literature_data[order(+literature_data$participant),]
+```
+
+I can now load in the tidied, ordered data set
+
+```{r}
+ordered_literature_data
+```
+
+Now that the literature data is in order based on participants, I can combine this data with `data_long` to produce a new data set that contains the reaction times in ms.,  the measure of engagement with literature and the word condition containing the two levels of Common Word and Rare Word for the original 48 participants that is tidied and is easier to interpret. I am using the 'data_long' data set rather than the original 'Coursework_Data' data set because the original data set does not group the Common Word and Rare Word levels by Condition, which makes it difficult to visually plot these levels with regards to Reaction Time (ms.) and Literature engagement.
+
+To accomplish this, I must first load in the `dplyr` package which contains the `inner_join()` function, a useful tool for combining two data frames that are matched on a common variable such as Participants.
+
+```{r}
+library(dplyr)
+```
+
+In order to combine my two data sets, I will firstly create a new data set titled `combined_data_long`. Next I will use the `inner_join()` function which will allow the two data sets to be combined. Within the parentheses, I state `ordered_literature_data` and `data_long` as the two datasets that I wish to combine. This is followed by the `c()` function that allows me to close the two datasets with regards to one consistent variable present within the two, in which this is `"participant"`.
+
+```{r}
+combined_data_long <- inner_join(ordered_literature_data, data_long, by = (c("participant")))
+```
+
+The new data frame 'combined_data_long' can now be viewed, showing the reaction times and the measure of engagement with literature for the original 48 participants.
+
+```{r}
+combined_data_long
+```
+
+I can now once again use `str()` function to gather information about the structure of `combined_data_long` by compactly displaying the content of the data.
+
+```{r}
+str(combined_data_long)
+```
+
+Here I can see there are 96 observations, with four variables associated with each observation. The three variables of Participant, Literature and Reaction Time (ms.) are all numeric vectors, whilst the Condition variable is character.
+
+### Part four
+
+I can now visualise the 'combined_data_long' data set to observe whether the participant's reaction times (in ms.) are related to their measure of engagement with literature for both word conditions. The best way to display this would be through a scatterplot, with Literature on the x axis and Reaction Time (ms.) on the y axis, with each datapoint colour coded based upon 'Common Word' or 'Rare Word'. In this instance, scatterplots are useful in showing the observations and relationships between two numeric vectors. 
+
+Firstly I will once again change the Condition labels of `common_word` and `rare_word` to `Common Word` and `Rare Word` within the `combined_data_long` data set so they are correctly formatted within the scatterplot. I will use similar code for formatting the labels within the violin plot, but instead changing the the name of the data set to 'combined_data_long', as this is the data set I am using in the scatterplot.
+
+Next, I use the pipe operator followed by the `ggplot()` function, which allows me to aesthetically create a graphic plot of the data. Within the parentheses, I use the `aes()` function which describes how variables within the dataset are visually mapped to the geoms. Within the `aes()` function parentheses, I plot the independent variable along the x axis using `x = literature` and the dependent variable along the y axis using `y = rt`. Following from this, I use `colour = Condition` to give distinguishable colours to the two levels within Condition.
+
+Next I add a layer using the `geom_jitter()` function to ensure any plot points that overlap are more distinguishable by adding a small amount of variation within the scatterplot and are therefore easier to identify. This is achieved through the `width = 0.05` command which limits the amount of variation produced by the `geom_jitter()` function. This is followed by using `alpha = .5` to make the scatter points that overlap more transparent and therefore easier to distinguish overlapping points. Finally, the use of `size = 4`
+will ensure the size of the plot points are big enough to distinguish within the scatterplot whilst still accurately displaying their position within the plot.
+
+I then add the `labs()` function to allow me to create the title for the scatterplot, with `title = Scatterplot of Reaction Time (in ms.) Against \nLiterature Engagement Grouped by Condition` in parentheses as the title. The use of `\n` will ensure that 'Literature Engagement Grouped by Condition' is on the following line so the title is displayed neatly and is not cut off. I also add the labels for my x and y axis, which are `Literature` and `Reaction Time (ms.)` respectively. Again, the use of the `theme()` function with `text = element text(size = 15)` in parentheses will make the title and labels a larger size and therefore easier to read.
+
+```{r}
+combined_data_long %>%
+  mutate(Condition = recode(condition,
+                            "common_word" = "Common Word",
+                            "rare_word" = "Rare Word")) %>%
+    ggplot(aes(x = literature, y = rt, colour = Condition)) +
+    geom_jitter(width = 0.05, alpha = .5, size = 4) +
+    labs(title = "Scatterplot of Reaction Time (in ms.) Against \nLiterature Engagement Grouped by Condition",
+        x = "Literature",
+        y = "Reaction Time (ms.)") +
+  theme(text = element_text(size = 15))
+```
+
+I can now see the fully plotted scatterplot of Reaction Time (ms.) against Literature with the colour of each datapoint colour coded on the basis of Condition.
+
+### Part five
+
+In order to see more clearly whether there is a relationship between Reaction Time (ms.) and engagement with Literature for each level within the word condition, I can also add a regression line to the scatterplot.
+
+To do this, I add a layer underneath the `geom_jitter()` layer using the `geom_smooth()` function which allows for patterns within the data to be displayed when data points are overlapping. This is followed by the parentheses `method = "lm", se = FALSE`, with `method = lm` describing that I wish to use a linear model regression line within the scatterplot, and the use of `se = FALSE` to remove the standard error variance around the regression lines, which allows them to appear tidier within the scatterplot and does not overshadow any data points.
+
+I have also changed the name of the title within the scatterpoint using the `labs()` function with the `title = "Scatterplot of Reaction Time (in ms.) Against Literature \nEngagement Grouped by Condition with Linear \nRegression Line` in parentheses. Again, the use of `\n` means that these parts of the title will appear in the line below in a neat and ordered manner.
+
+```{r}
+combined_data_long %>%
+  mutate(Condition = recode(condition,
+                            "common_word" = "Common Word",
+                            "rare_word" = "Rare Word")) %>%
+    ggplot(aes(x = literature, y = rt, colour = Condition)) +
+    geom_jitter(width = 0.05, alpha = .5, size = 4) +
+  geom_smooth(method = "lm", se = FALSE) +
+    labs(title = "Scatterplot of Reaction Time (in ms.) Against Literature \nEngagement Grouped by Condition with Linear \nRegression Line",
+        x = "Literature",
+        y = "Reaction Time (ms.)") +
+  theme(text = element_text(size = 15))
+```
+
+Here I can see that based on the regression lines there is almost no relationship between the measure of engagement with Literature and a participant's Reaction Time (ms.) with regards to Common Words or Rare Words. The Common Word level has a very slight negative correlation, suggesting that as literature engagement increased, their time taken to respond to common words slightly decreased. Conversely, the Rare Word level has a very slight positive correlation, suggesting that as a participant's literature engagement increased, so did the time it took them to respond to rare words. As such, it is fair to assume that a participant's engagement with literature is not related to their reaction time in ms.
